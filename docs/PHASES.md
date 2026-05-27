@@ -42,17 +42,18 @@ council facts; semantic search returns sane neighbors.
 
 ---
 
-## Phase 2 — Retrieval Layer ⬜
+## Phase 2 — Retrieval Layer ✅
 
 **Goal:** Denomination-aware scripture + history retrieval functions.
 
-- ⬜ `core/retrieval.py` — `search_scripture(query, denomination, k)` with canon filter
-- ⬜ `search_history(query, denomination, k)`
-- ⬜ Retrieval confidence scoring (top-k cosine threshold from config)
-- ⬜ Reference lookup `verse_exists(book, chapter, verse)` for citation validation
+- ✅ `core/retrieval.py` — `search_scripture(query, denomination, k)` with canon filter
+- ✅ `search_history(query, denomination, k)` (validated once `history_docs` populated)
+- ✅ Retrieval confidence scoring (top cosine similarity, threshold in config)
+- ✅ Reference lookup `verse_exists(book, chapter, verse)` for citation validation
 
 **Exit:** Given a query + denomination, returns ranked verses honoring canon
-membership; confidence reflects match quality.
+membership; confidence reflects match quality. ✅ (search_scripture +
+verse_exists verified; search_history pending corpus.)
 
 ---
 
