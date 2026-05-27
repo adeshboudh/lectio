@@ -154,24 +154,15 @@ def node_theology(state: AgentState) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def node_image(state: AgentState) -> dict[str, Any]:
-    """Rewrite user prompt into a safe Christian-art form; store for validation."""
-    from app.core.llm import generate_grounded
+    """Rewrite user prompt into safe Christian-art form; store for post-rewrite validation."""
+    from app.core.image import rewrite_image_prompt
 
     t = _tick()
-    rewrite_prompt = (
-        "Rewrite the following image request as a safe, reverential Christian fine-art "
-        "prompt suitable for a painting in the style of Renaissance religious art. "
-        "Remove any politically sensitive, interfaith-mocking, or policy-violating elements. "
-        "Return ONLY the rewritten prompt, no explanation.\n\n"
-        f"Original request: {state['user_message']}"
-    )
-    sanitized = generate_grounded(
-        query=rewrite_prompt,
-        context_block="",
-        denomination=state["denomination"],
-        max_output_tokens=200,
-        temperature=0.2,
-    ).strip()
+    try:
+        sanitized = rewrite_image_prompt(state["user_message"], state["denomination"])
+    except Exception as exc:
+        log.error("node_image.rewrite_failed", error=str(exc))
+        sanitized = state["user_message"]   # fallback: pass original; validator will re-check
     return {
         "sanitized_image_prompt": sanitized,
         "latency_ms": {**state.get("latency_ms", {}), "image_rewrite": _ms(t)},
@@ -183,39 +174,34 @@ def node_image(state: AgentState) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def node_image_validator(state: AgentState) -> dict[str, Any]:
+    """Re-classify rewritten prompt (closes post-rewrite safety gap), then generate."""
+    from app.core.image import generate_image
+
     t = _tick()
-    result = classify(state["sanitized_image_prompt"])
-    passed = result.safe and result.intent == "image"
-    update: dict[str, Any] = {
+    passed = False
+    image_url = ""
+    flagged = False
+
+    try:
+        result = classify(state["sanitized_image_prompt"])
+        passed = result.safe and result.intent == "image"
+    except Exception as exc:
+        # Gemini transient error → fail safe: block the image
+        log.warning("image_validator.fallback", error=str(exc))
+        passed = False
+        flagged = True
+
+    if passed:
+        image_url = generate_image(state["sanitized_image_prompt"])
+    else:
+        flagged = True
+
+    return {
         "image_safety_passed": passed,
+        "image_url": image_url,
+        "flagged": flagged,
         "latency_ms": {**state.get("latency_ms", {}), "image_validator": _ms(t)},
     }
-    if passed:
-        # Generate image via Imagen
-        image_url = _generate_image(state["sanitized_image_prompt"])
-        update["image_url"] = image_url
-    else:
-        update["flagged"] = True
-    return update
-
-
-def _generate_image(prompt: str) -> str:
-    from google import genai
-    from google.genai import types as gtypes
-    from app.core.llm import _client
-
-    resp = _client().models.generate_images(
-        model=_s.image_model,
-        prompt=prompt,
-        config=gtypes.GenerateImagesConfig(number_of_images=1, output_mime_type="image/jpeg"),
-    )
-    if resp.generated_images:
-        img = resp.generated_images[0]
-        # Return data URI; frontend renders inline
-        import base64
-        data = base64.b64encode(img.image.image_bytes).decode()
-        return f"data:image/jpeg;base64,{data}"
-    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -288,21 +274,24 @@ def node_generate(state: AgentState) -> dict[str, Any]:
     t = _tick()
     docs = state.get("retrieved_docs", [])
 
-    # Build context block from whichever corpus was retrieved
-    if docs and ("book" in docs[0]):  # scripture rows have "book"
+    if docs and ("book" in docs[0]):
         ctx = build_scripture_context(docs)
     elif docs:
         ctx = build_history_context(docs)
     else:
-        ctx = build_scripture_context([])   # "none retrieved" fallback
+        ctx = build_scripture_context([])
 
     memory_block = _memory_block(state.get("memory_turns", []))
-    raw = generate_grounded(
-        query=state["user_message"],
-        context_block=ctx,
-        denomination=state["denomination"],
-        memory_block=memory_block,
-    )
+    try:
+        raw = generate_grounded(
+            query=state["user_message"],
+            context_block=ctx,
+            denomination=state["denomination"],
+            memory_block=memory_block,
+        )
+    except Exception as exc:
+        log.error("node_generate.failed", error=str(exc))
+        raw = "I'm sorry, I encountered an error generating a response. Please try again."
     return {
         "raw_response": raw,
         "latency_ms": {**state.get("latency_ms", {}), "generate": _ms(t)},
