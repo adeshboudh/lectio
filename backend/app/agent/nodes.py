@@ -42,7 +42,18 @@ def _memory_block(turns: list[dict]) -> str:
 # ---------------------------------------------------------------------------
 
 def node_input(state: AgentState) -> dict[str, Any]:
-    """Initialize defaults and add user turn to message list."""
+    """Initialize defaults, load conversation memory, add user turn to messages."""
+    from app.core.memory import load_memory
+
+    t = _tick()
+    turns, strategy, guard_note = load_memory(
+        state["session_id"], state["user_message"], state["denomination"]
+    )
+
+    # Prepend denomination-switch note as a system turn when framing changed
+    if guard_note:
+        turns = [{"role": "system", "content": guard_note}] + turns
+
     return {
         "intent": "general",
         "router_confidence": 0.0,
@@ -58,9 +69,9 @@ def node_input(state: AgentState) -> dict[str, Any]:
         "image_safety_passed": False,
         "image_url": "",
         "final_response": "",
-        "memory_strategy": "window",
-        "memory_turns": [],
-        "latency_ms": {},
+        "memory_strategy": strategy,
+        "memory_turns": turns,
+        "latency_ms": {"memory_load": _ms(t)},
         "messages": [HumanMessage(content=state["user_message"])],
     }
 
@@ -303,6 +314,8 @@ def node_generate(state: AgentState) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def node_responder(state: AgentState) -> dict[str, Any]:
+    from app.core.memory import save_turn
+
     if state.get("flagged") and not state.get("raw_response"):
         final = (
             "I'm not able to help with that request. "
@@ -312,6 +325,11 @@ def node_responder(state: AgentState) -> dict[str, Any]:
         final = state.get("raw_response", "") or "Here is the generated image."
     else:
         final = state.get("raw_response", "")
+
+    # Persist both turns (skip if flagged — don't store adversarial content)
+    if not state.get("flagged"):
+        save_turn(state["session_id"], "user", state["user_message"], state["denomination"])
+        save_turn(state["session_id"], "assistant", final, state["denomination"])
 
     return {
         "final_response": final,
