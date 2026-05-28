@@ -6,6 +6,8 @@ injects retrieved context into the prompt and the system instruction forbids
 citing anything outside it.
 """
 
+import json
+import re
 from typing import Any
 
 from google import genai
@@ -109,4 +111,14 @@ def generate_json(
         else:
             raise
     log.info("llm.generate_json", model=model)
-    return resp.parsed
+    if resp.parsed is not None:
+        return resp.parsed
+    # Fallback: model wrapped JSON in a markdown code block — strip and parse manually
+    raw = resp.text or ""
+    raw = re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=re.IGNORECASE)
+    raw = re.sub(r"\s*```$", "", raw.strip())
+    try:
+        data = json.loads(raw)
+        return response_schema(**data)
+    except Exception:
+        return None

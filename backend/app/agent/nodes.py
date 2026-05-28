@@ -80,6 +80,23 @@ def node_input(state: AgentState) -> dict[str, Any]:
 # Node: safety + router
 # ---------------------------------------------------------------------------
 
+_HISTORY_KEYWORDS = re.compile(
+    r"\b(council|creed|nicaea|chalcedon|trent|nicea|constantine|arius|athanasius|"
+    r"reformation|schism|pope|patriarch|catechism|confession|synod|ecumenical)\b",
+    re.IGNORECASE,
+)
+_IMAGE_KEYWORDS = re.compile(r"\b(generate|create|draw|paint|image|picture|illustration)\b", re.IGNORECASE)
+
+
+def _fallback_intent(message: str) -> str:
+    """Keyword-based intent estimate used when Gemini Flash is unavailable."""
+    if _IMAGE_KEYWORDS.search(message):
+        return "image"
+    if _HISTORY_KEYWORDS.search(message):
+        return "history"
+    return "general"
+
+
 def node_safety_router(state: AgentState) -> dict[str, Any]:
     t = _tick()
     try:
@@ -88,9 +105,9 @@ def node_safety_router(state: AgentState) -> dict[str, Any]:
         confidence = result.confidence
         flagged = not result.safe
     except Exception as exc:
-        # Gemini transient error → fail safe: allow through as general, log
-        log.warning("safety_router.fallback", error=str(exc))
-        intent = "general"
+        # Gemini transient error → fail safe: allow through, keyword-route intent
+        intent = _fallback_intent(state["user_message"])
+        log.warning("safety_router.fallback", error=str(exc), fallback_intent=intent)
         confidence = 0.5
         flagged = False
     return {
@@ -184,7 +201,7 @@ def node_image_validator(state: AgentState) -> dict[str, Any]:
 
     try:
         result = classify(state["sanitized_image_prompt"])
-        passed = result.safe and result.intent == "image"
+        passed = result.safe  # intent re-checked as safe art; original intent already routed
     except Exception as exc:
         # Gemini transient error → fail safe: block the image
         log.warning("image_validator.fallback", error=str(exc))

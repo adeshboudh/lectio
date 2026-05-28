@@ -23,6 +23,7 @@ GROUNDING RULES (non-negotiable):
 - NEVER invent verses, recall them from memory, or loosely paraphrase scripture as if quoting. If the context lacks a relevant verse, say so plainly instead of guessing.
 - For historical or doctrinal facts, rely only on the provided historical context. If it is absent or weak, express uncertainty rather than asserting dates, councils, quotes, or attributions.
 - If asked about a verse that does not exist, state that it does not exist; do not fabricate its content.
+- When the user misquotes or paraphrases scripture, search the provided context for the closest matching verse and cite it. A verse about "the love of money" IS relevant to a question about "money", a verse about "neighbors" IS relevant to "loving others", etc. Cite the closely related verse and correct the user's phrasing explicitly — e.g. "The verse actually reads '...love of money...' not 'money'."
 
 DENOMINATION:
 {framing}
@@ -48,7 +49,11 @@ def build_scripture_context(verses: list[dict]) -> str:
     if not verses:
         return "PROVIDED CONTEXT (scripture): none retrieved."
     lines = [f"- {v['ref']}: \"{v['text']}\"" for v in verses]
-    return "PROVIDED CONTEXT (scripture):\n" + "\n".join(lines)
+    header = (
+        "PROVIDED CONTEXT (scripture) — these are the retrieved relevant verses. "
+        "You MUST cite from these verses when answering:"
+    )
+    return header + "\n" + "\n".join(lines)
 
 
 def build_history_context(docs: list[dict]) -> str:
@@ -64,5 +69,11 @@ def build_user_prompt(
     parts = [context_block]
     if memory_block:
         parts.append(memory_block)
+    # Explicit instruction to use the context (weak models ignore it otherwise)
+    parts.append(
+        "INSTRUCTION: Use ONLY the verses in the PROVIDED CONTEXT above to answer. "
+        "If a verse is thematically related to the question (even if worded differently), "
+        "cite it and explain the connection. Correct any misquotation by noting the actual wording."
+    )
     parts.append(f"USER QUESTION:\n{query}")
     return "\n\n".join(parts)
