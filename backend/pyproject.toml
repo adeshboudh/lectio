@@ -23,6 +23,7 @@ dependencies = [
     # embeddings (local, no API)
     "sentence-transformers>=3.3",
     "httpx>=0.27",
+    "pypdf>=6.12.2",
 ]
 
 [project.optional-dependencies]
