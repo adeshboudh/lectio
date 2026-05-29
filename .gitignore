@@ -28,5 +28,6 @@ out/
 .cache/
 *.safetensors
 
-# redundant full-bible PDF (using KJV JSON instead)
-assets/The-Holy-Bible-King-James-Version.pdf
+# large source data files — already ingested into NeonDB
+assets/*.pdf
+assets/KJV-with-Apocrypha.json
