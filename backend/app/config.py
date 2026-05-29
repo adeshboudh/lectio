@@ -24,8 +24,8 @@ class Settings(BaseSettings):
 
     # gemini (google-genai)
     gemini_api_key: str = Field(default="")
-    model_main: str = "gemini-2.5-pro"
-    model_safety: str = "gemini-2.5-flash"
+    model_main: str = "gemini-3.1-flash-lite"
+    model_safety: str = "gemma-4-31b-it"
 
     # embeddings (local sentence-transformers, no API)
     embedding_model: str = "BAAI/bge-base-en-v1.5"
