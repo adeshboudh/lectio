@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     env: Literal["dev", "prod"] = "dev"
     log_level: str = "INFO"
     log_json: bool = False  # True -> JSON logs (prod), False -> console (dev)
+    cors_origins: str = ""  # comma-separated; empty = localhost only
 
     # database
     database_url: str = Field(
