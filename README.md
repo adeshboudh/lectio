@@ -14,6 +14,15 @@ short_description: Denomination-aware Christian AI assistant
 
 Grounded, denomination-aware Christianity AI assistant built for the SoluLab technical assessment.
 
+## Live Demo
+
+| Service | URL |
+| :-- | :-- |
+| Frontend | [lectio-neon.vercel.app](https://lectio-neon.vercel.app) |
+| Backend API | [adesh01-lectio.hf.space](https://adesh01-lectio.hf.space) |
+| API Docs | [adesh01-lectio.hf.space/docs](https://adesh01-lectio.hf.space/docs) |
+| Source | [github.com/adeshboudh/lectio](https://github.com/adeshboudh/lectio) |
+
 ## Architecture at a Glance
 
 ```
@@ -48,13 +57,21 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | HLD: [`docs/HLD.md
 | :-- | :-- |
 | Backend | Python 3.12, FastAPI, uvicorn |
 | Agent | LangGraph StateGraph |
-| LLM | Gemini 2.5 Pro (grounded gen) + Gemini Flash (safety/router) |
+| LLM | `gemini-3.1-flash-lite` (grounded gen) + `gemma-4-31b-it` (safety/router) |
 | Embeddings | `BAAI/bge-base-en-v1.5` (local, sentence-transformers) |
-| Data | PostgreSQL 16 + pgvector |
+| Data | PostgreSQL 16 + pgvector (NeonDB cloud) |
 | Images | FLUX.1-dev via NVIDIA AI API |
 | Frontend | Next.js 16, pure CSS (Lectio design system) |
 | Logging | structlog |
 | Package mgr | uv |
+
+## Deployment
+
+| Layer | Platform | Notes |
+| :-- | :-- | :-- |
+| Frontend | Vercel | Auto-deploy from `master`, `NEXT_PUBLIC_API_URL` points to HF Space |
+| Backend | HuggingFace Spaces (Docker) | Port 7860, env secrets set in Space settings |
+| Database | NeonDB (ap-southeast-1) | pgvector enabled, 31,102 KJV verses + 1,406 history chunks ingested |
 
 ## Quick Start
 
