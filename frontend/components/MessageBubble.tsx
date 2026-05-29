@@ -1,55 +1,90 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/api";
-import CitationBadge from "./CitationBadge";
+import { DENOM_ICON, CrossLatin, IcShieldSlash } from "./Icons";
+import { CitationsBlock } from "./VerseBlock";
 
 interface Props {
   message: Message;
+  citeVariant?: "marginalia" | "card" | "footnote";
 }
 
-export default function MessageBubble({ message }: Props) {
-  const isUser = message.role === "user";
+const DENOM_LENS: Record<string, string> = {
+  protestant: "Protestant",
+  catholic: "Catholic",
+  orthodox: "Orthodox",
+};
+
+export default function MessageBubble({ message, citeVariant = "marginalia" }: Props) {
+  if (message.role === "user") {
+    return (
+      <div className="msg msg-user">
+        <div className="bubble-user">{message.content}</div>
+      </div>
+    );
+  }
+
+  const lens = message.lens ?? "protestant";
+  const Sigil = DENOM_ICON[lens] ?? CrossLatin;
+  const lensName = DENOM_LENS[lens] ?? "Protestant";
+
+  const citations = message.citations ?? [];
+  const hallucinated = message.hallucinated_refs ?? [];
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm
-          ${isUser
-            ? "bg-amber-700 text-white rounded-br-sm"
-            : message.flagged
-              ? "bg-red-50 text-red-800 border border-red-200 rounded-bl-sm"
-              : "bg-white text-gray-800 border border-gray-100 rounded-bl-sm"
-          }`}
-      >
-        {message.flagged && (
-          <p className="text-xs font-semibold text-red-600 mb-1">🚫 Request blocked</p>
-        )}
-
-        {message.intent && !isUser && (
-          <p className="text-xs text-gray-400 mb-1 font-mono">
-            [{message.intent}]
-          </p>
-        )}
-
-        <p className="whitespace-pre-wrap leading-relaxed text-sm">{message.content}</p>
-
-        {message.image_url && (
-          <div className="mt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={message.image_url}
-              alt="Generated Christian artwork"
-              className="rounded-lg max-w-full border border-gray-200"
-            />
-          </div>
-        )}
-
-        {!isUser && (
-          <CitationBadge
-            citations={message.citations ?? []}
-            hallucinated={message.hallucinated_refs ?? []}
-            driftWarning={message.drift_warning ?? false}
-          />
-        )}
+    <div className="msg msg-assistant">
+      <div className="assistant-head">
+        <span className="assistant-sigil">
+          <Sigil size={15} sw={1.7} />
+        </span>
+        Lectio
+        <span className="lens-tag">
+          through the <b>{lensName}</b> lens
+        </span>
       </div>
+
+      {message.flagged ? (
+        <div className="blocked">
+          <div className="blocked-icon">
+            <IcShieldSlash size={18} sw={1.6} />
+          </div>
+          <div>
+            <div className="blocked-title">This request can&apos;t be answered here</div>
+            <div className="blocked-body">
+              {message.content ||
+                "Lectio is a study companion for Scripture, theology, and church history. " +
+                "This message was set aside by the safety review. " +
+                "You're welcome to rephrase — I'm glad to help with anything in the life of faith."}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="prose">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+
+          {message.image_url && (
+            <figure className="artwork">
+              <div className="artwork-frame">
+                <div className="artwork-mat">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={message.image_url}
+                    alt="Generated Christian artwork"
+                    className="artwork-img"
+                  />
+                </div>
+              </div>
+              <figcaption className="artwork-cap">Generated Christian artwork</figcaption>
+            </figure>
+          )}
+
+          <CitationsBlock
+            citations={citations}
+            hallucinated={hallucinated}
+            variant={citeVariant}
+          />
+        </div>
+      )}
     </div>
   );
 }

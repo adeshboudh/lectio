@@ -2,34 +2,60 @@
 
 import { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-
-import ChatInput from "@/components/ChatInput";
+import { Denomination, Message, sendMessage } from "@/lib/api";
 import DenominationSelector from "@/components/DenominationSelector";
 import MessageBubble from "@/components/MessageBubble";
-import { Denomination, Message, sendMessage } from "@/lib/api";
+import EmptyState from "@/components/EmptyState";
+import Loading from "@/components/Loading";
+import Composer from "@/components/Composer";
+import { IcFlame, IcPlus, IcMoon, IcSun } from "@/components/Icons";
 
 export default function Home() {
   const [sessionId] = useState(() => uuidv4());
   const [denomination, setDenomination] = useState<Denomination>("protestant");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // restore persisted prefs
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("lectio.theme") as "light" | "dark" | null;
+    if (savedTheme) setTheme(savedTheme);
+    const savedDenom = localStorage.getItem("lectio.denom") as Denomination | null;
+    if (savedDenom) setDenomination(savedDenom);
+  }, []);
+
+  // apply data-theme + data-denom to html/body (CSS selector hooks)
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("lectio.theme", theme);
+  }, [theme]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    document.documentElement.setAttribute("data-denom", denomination);
+    document.body.setAttribute("data-denom", denomination);
+    localStorage.setItem("lectio.denom", denomination);
+  }, [denomination]);
+
+  // auto-scroll on new messages
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }, [messages, loading]);
 
   async function handleSend(text: string) {
     setError(null);
-    const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
-
     try {
       const resp = await sendMessage(sessionId, text, denomination);
       const assistantMsg: Message = {
         role: "assistant",
+        lens: denomination,
         content: resp.response,
         citations: resp.citations,
         hallucinated_refs: resp.hallucinated_refs,
@@ -47,71 +73,72 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-amber-800 text-white px-6 py-4 shadow-md">
-        <div className="max-w-3xl mx-auto flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">✝ Christianity AI Assistant</h1>
-            <p className="text-amber-200 text-xs mt-0.5">
-              Scripture-grounded · Denomination-aware · Hallucination-resistant
-            </p>
-          </div>
-          <DenominationSelector
-            value={denomination}
-            onChange={setDenomination}
-            disabled={loading}
-          />
+    <div className="app">
+      <header className="header">
+        <div className="brand">
+          <span className="brand-mark">
+            <IcFlame size={22} sw={1.5} />
+          </span>
+          <span className="brand-name">
+            Lectio
+            <span className="sub">Scripture Companion</span>
+          </span>
         </div>
+
+        <div className="header-spacer" />
+
+        <DenominationSelector
+          value={denomination}
+          onChange={setDenomination}
+          variant="cards"
+          disabled={loading}
+        />
+
+        <button
+          className="icon-btn"
+          onClick={() => setMessages([])}
+          aria-label="New conversation"
+          title="New conversation"
+        >
+          <IcPlus />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+          aria-label="Toggle theme"
+          title="Toggle candlelight"
+        >
+          {theme === "light" ? <IcMoon /> : <IcSun />}
+        </button>
       </header>
 
-      {/* Messages */}
-      <main className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-400 text-sm mt-16 space-y-2">
-              <p className="text-4xl">✝</p>
-              <p className="font-medium text-gray-500">Ask about scripture, theology, or Christian life.</p>
-              <p>Try: <span className="italic">&quot;What does the Bible say about forgiveness?&quot;</span></p>
-              <p>Or: <span className="italic">&quot;Generate an image of the nativity scene.&quot;</span></p>
-            </div>
-          )}
+      <div className="scroll" ref={scrollRef}>
+        {messages.length === 0 && !loading ? (
+          <EmptyState onPick={handleSend} />
+        ) : (
+          <div className="thread">
+            {messages.map((msg, i) => (
+              <MessageBubble key={i} message={msg} citeVariant="marginalia" />
+            ))}
+            {loading && <Loading />}
+          </div>
+        )}
 
-          {messages.map((msg, i) => (
-            <MessageBubble key={i} message={msg} />
-          ))}
-
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-                <div className="flex gap-1 items-center">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" />
+        {error && (
+          <div style={{ maxWidth: "var(--reading-width)", margin: "16px auto 0", padding: "0 clamp(16px,4vw,24px)" }}>
+            <div className="blocked">
+              <div>
+                <div className="blocked-title" style={{ color: "var(--redacted)" }}>
+                  Connection error
                 </div>
+                <div className="blocked-body">{error}</div>
               </div>
             </div>
-          )}
+          </div>
+        )}
+      </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-              ⚠ {error}
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      </main>
-
-      {/* Input */}
-      <footer className="border-t border-gray-200 bg-white px-4 py-4">
-        <div className="max-w-3xl mx-auto">
-          <ChatInput onSend={handleSend} disabled={loading} />
-          <p className="text-xs text-gray-400 mt-2 text-center">
-            Responses grounded in KJV scripture · Citations verified · Denomination: {denomination}
-          </p>
-        </div>
-      </footer>
+      <Composer onSend={handleSend} disabled={loading} />
     </div>
   );
 }

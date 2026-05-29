@@ -23,6 +23,7 @@ export interface ChatResponse {
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  lens?: Denomination;
   citations?: Citation[];
   hallucinated_refs?: string[];
   drift_warning?: boolean;

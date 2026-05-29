@@ -30,8 +30,9 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-base-en-v1.5"
     embedding_dim: int = 768
 
-    # image generation (Imagen via google-genai)
-    image_model: str = "imagen-3.0-generate-002"
+    # image generation (FLUX.1-dev via NVIDIA)
+    nvidia_api_key: str = Field(default="")
+    image_model: str = "black-forest-labs/flux.1-dev"
 
     # retrieval
     rag_top_k: int = 5

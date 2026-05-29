@@ -1,17 +1,20 @@
-"""Image generation via Imagen (google-genai).
+"""Image generation via FLUX.1-dev (NVIDIA AI API).
 
 Prompt rewriting and two-pass safety are enforced by the graph nodes;
-this module handles only the Imagen API call and response packaging.
+this module handles only the API call and response packaging.
 """
 
 import base64
 
+import httpx
+
 from app.config import get_settings
-from app.core.llm import _client
 from app.logging_config import get_logger
 
 log = get_logger(__name__)
 _s = get_settings()
+
+_NVIDIA_URL = "https://ai.api.nvidia.com/v1/genai/{model}"
 
 _REWRITE_PROMPT = """Rewrite the following image request as a safe, reverential Christian \
 fine-art prompt suitable for a painting in the style of Renaissance religious art. \
@@ -35,24 +38,35 @@ def rewrite_image_prompt(user_request: str, denomination: str) -> str:
 
 
 def generate_image(prompt: str) -> str:
-    """Call Imagen API, return data URI or empty string on failure."""
+    """Call FLUX.1-dev via NVIDIA API, return data URI or empty string on failure."""
     try:
-        from google.genai import types as gtypes
+        url = _NVIDIA_URL.format(model=_s.image_model)
+        headers = {
+            "Authorization": f"Bearer {_s.nvidia_api_key}",
+            "Accept": "application/json",
+        }
+        payload = {
+            "prompt": prompt,
+            "mode": "base",
+            "cfg_scale": 3.5,
+            "width": 1024,
+            "height": 1024,
+            "seed": 0,
+            "steps": 50,
+        }
 
-        resp = _client().models.generate_images(
-            model=_s.image_model,
-            prompt=prompt,
-            config=gtypes.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
-            ),
-        )
-        if resp.generated_images:
-            img_bytes = resp.generated_images[0].image.image_bytes
-            data = base64.b64encode(img_bytes).decode()
-            log.info("image.generated", model=_s.image_model, bytes=len(img_bytes))
-            return f"data:image/jpeg;base64,{data}"
-        log.warning("image.empty_response", model=_s.image_model)
+        resp = httpx.post(url, headers=headers, json=payload, timeout=120.0)
+        resp.raise_for_status()
+        body = resp.json()
+
+        artifacts = body.get("artifacts") or []
+        if artifacts:
+            b64 = artifacts[0].get("base64", "")
+            if b64:
+                log.info("image.generated", model=_s.image_model, bytes=len(b64))
+                return f"data:image/jpeg;base64,{b64}"
+
+        log.warning("image.empty_response", model=_s.image_model, body=body)
         return ""
     except Exception as exc:
         log.error("image.generation_failed", error=str(exc))
