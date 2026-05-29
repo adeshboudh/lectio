@@ -1,13 +1,13 @@
 ---
 title: Lectio
 emoji: 📖
-colorFrom: amber
-colorTo: yellow
+colorFrom: yellow
+colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: Denomination-aware Christian AI assistant — Scripture RAG, hallucination prevention, image gen
+short_description: Denomination-aware Christian AI assistant
 ---
 
 # Lectio — Scripture Companion
