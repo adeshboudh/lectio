@@ -17,20 +17,14 @@ Key points to cover:
 
 ---
 
-## 2. System Startup (30 sec)
+## 2. Live Demo (30 sec)
 
-```bash
-# Start database
-docker compose up -d
+Open the live deployment — no local setup needed:
 
-# Start backend
-cd backend && uv run uvicorn app.main:app --reload
+- **Frontend:** https://lectio-neon.vercel.app
+- **Backend API / docs:** https://adesh01-lectio.hf.space/docs
 
-# Start frontend (separate terminal)
-cd frontend && npm run dev
-```
-
-Open `http://localhost:3000`.
+Stack: Vercel (Next.js) → HuggingFace Spaces Docker (FastAPI) → NeonDB (pgvector, cloud PostgreSQL).
 
 ---
 
@@ -93,8 +87,8 @@ Show:
 **Safe prompt:** "Generate an image of Jesus praying in the Garden of Gethsemane."
 
 Show:
-- Prompt is rewritten to safe Christian-art form (logged server-side)
-- Post-rewrite re-classification before calling Imagen 3
+- Prompt is rewritten to safe Renaissance-art form (logged server-side)
+- Post-rewrite re-classification before calling FLUX.1-dev
 - Image appears in chat
 
 **Blocked prompt:** "Generate Jesus mocking Muslims."
