@@ -1,7 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, useEffect } from "react";
 import { IcSend, IcBook, IcImage, IcCheckSeal } from "./Icons";
+
+const IMAGE_HINT = /\b(generate|create|draw|paint|show|image|picture|art|illustrate|depict)\b/i;
 
 interface Props {
   onSend: (text: string) => void;
@@ -11,6 +13,8 @@ interface Props {
 export default function Composer({ onSend, disabled }: Props) {
   const [val, setVal] = useState("");
   const [imageMode, setImageMode] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ta = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -20,9 +24,25 @@ export default function Composer({ onSend, disabled }: Props) {
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   }, [val]);
 
+  useEffect(() => {
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  };
+
   const submit = () => {
     const text = val.trim();
     if (!text || disabled) return;
+    const looksLikeImage = IMAGE_HINT.test(text);
+    if (!imageMode && looksLikeImage) {
+      showToast("Looks like an image request — switch to Create Art mode?");
+    } else if (imageMode && !looksLikeImage) {
+      showToast("Looks like a scripture question — switch to Study mode?");
+    }
     onSend(text);
     setVal("");
   };
@@ -36,6 +56,11 @@ export default function Composer({ onSend, disabled }: Props) {
 
   return (
     <div className="composer-wrap">
+      {toast && (
+        <div className="composer-toast" role="status">
+          {toast}
+        </div>
+      )}
       <div className="composer">
         <div className="mode-chips">
           <button
