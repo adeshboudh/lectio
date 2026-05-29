@@ -4,11 +4,8 @@ WORKDIR /app
 
 RUN pip install uv --no-cache-dir
 
-COPY backend/pyproject.toml backend/uv.lock ./
+COPY backend/ ./
 RUN uv sync --no-dev
-
-COPY backend/app ./app
-COPY backend/scripts ./scripts
 
 # Pre-download embedding model so cold start doesn't time out
 RUN uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-base-en-v1.5')"
