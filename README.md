@@ -1,3 +1,15 @@
+---
+title: Lectio
+emoji: 📖
+colorFrom: amber
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: Denomination-aware Christian AI assistant — Scripture RAG, hallucination prevention, image gen
+---
+
 # Lectio — Scripture Companion
 
 Grounded, denomination-aware Christianity AI assistant built for the SoluLab technical assessment.
