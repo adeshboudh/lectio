@@ -22,6 +22,7 @@ Grounded, denomination-aware Christianity AI assistant built for the SoluLab tec
 | Backend API | [adesh01-lectio.hf.space](https://adesh01-lectio.hf.space) |
 | API Docs | [adesh01-lectio.hf.space/docs](https://adesh01-lectio.hf.space/docs) |
 | Source | [github.com/adeshboudh/lectio](https://github.com/adeshboudh/lectio) |
+| Walkthrough video | [Google Drive — 5 min demo](https://drive.google.com/file/d/1_y2Oc4o5YWeb9RXZYLA_ECjmwOYosVUD/view?usp=sharing) |
 
 ## Architecture at a Glance
 
